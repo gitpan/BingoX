@@ -1,7 +1,7 @@
 # BingoX::Carbon
 # -----------------
-# $Revision: 2.34 $
-# $Date: 2000/12/12 19:05:00 $
+# $Revision: 2.36 $
+# $Date: 2001/12/20 19:22:38 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -212,7 +212,7 @@ use BingoX::Time;
 use vars qw($AUTOLOAD $debug);
 
 BEGIN {
-	$BingoX::Carbon::REVISION	= (qw$Revision: 2.34 $)[-1];
+	$BingoX::Carbon::REVISION	= (qw$Revision: 2.36 $)[-1];
 	$BingoX::Carbon::VERSION	= '1.92';
 
 	$debug	= undef;
@@ -351,7 +351,7 @@ sub new {
 	## Get data out of data hash which are date fields. ##
 	if (my $datefields = $class->datefields) {
 		foreach (keys %$datefields) {
-			$data->{$_} = $data->{$_}->time2str( $self->date_format ) if (ref $data->{$_});
+			$data->{$_} = $data->{$_}->time2str( $class->date_format ) if (ref $data->{$_});
 			warn "datefield $_ ==> " . $data->{$_} . "\n" if ($debug > 1);
 		}
 	}
@@ -1481,7 +1481,6 @@ sub table {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
-	my $dbh		= ref($self) ? $self->dbh : shift;
 	return ${"${class}::table"} || $self->error_handler("Package variable ${class}::table not defined");
 } # END sub table
 
@@ -1495,8 +1494,7 @@ sub identity {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
-	my $dbh		= ref($self) ? $self->dbh : shift;
-	return ${"${class}::identity"} || $self->error_handler("Package variable ${class}::identity not defined");
+	return ${"${class}::identity"};
 } # END sub identity
 
 
@@ -1509,8 +1507,7 @@ sub sequence {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
-	my $dbh		= ref($self) ? $self->dbh : shift;
-	return ${"${class}::sequence"} || $self->error_handler("Package variable ${class}::sequence not defined");
+	return ${"${class}::sequence"};
 } # END sub sequence
 
 
@@ -1523,8 +1520,7 @@ sub seqcol {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
-	my $dbh		= ref($self) ? $self->dbh : shift;
-	return ${"${class}::seqcol"} || $self->error_handler("Package variable ${class}::seqcol not defined");
+	return ${"${class}::seqcol"};
 } # END sub seqcol
 
 
@@ -1568,7 +1564,7 @@ sub relations {
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	no strict 'refs';
-	return { %{"${class}::relations"} } || $self->error_handler("Package variable ${class}::relations not defined");
+	return { %{"${class}::relations"} };
 } # END sub relations
 
 
@@ -1581,7 +1577,7 @@ sub foreign_keys {
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	no strict 'refs';
-	return { %{"${class}::foreign_keys"} } || $self->error_handler("Package variable ${class}::foreign_keys not defined");
+	return { %{"${class}::foreign_keys"} };
 } # END sub foreign_keys
 
 
@@ -1627,7 +1623,7 @@ sub title_field {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
-	return ${"${class}::title_field"} || $self->error_handler("Package variable ${class}::title_field not defined");
+	return ${"${class}::title_field"};
 } # END sub title_field
 
 
@@ -1640,7 +1636,7 @@ sub title_size {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
-	return ${"${class}::title_size"} || $self->error_handler("Package variable ${class}::title_size not defined");
+	return ${"${class}::title_size"};
 } # END sub title_size
 
 
@@ -1655,7 +1651,7 @@ sub content_fields {
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	return { %{"${class}::contentfields"} } if (keys %{"${class}::contentfields"});
-	return { %{"${class}::content_fields"} } || $self->error_handler("Package variable ${class}::content_fields not defined");
+	return { %{"${class}::content_fields"} };
 } # END sub content_fields
 
 
@@ -1670,7 +1666,7 @@ sub date_fields {
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	return { %{"${class}::datefields"} } if (keys %{"${class}::datefields"});
-	return { %{"${class}::date_fields"} } || $self->error_handler("Package variable ${class}::date_fields not defined");
+	return { %{"${class}::date_fields"} };
 } # END sub date_fields
 
 
@@ -1796,6 +1792,7 @@ sub errors {
 		} else {
 			my $error = ${"${self}::errstr"};
 			${"${self}::errstr"} = undef;
+			return $error;
 		}
 	}
 } # END sub errors
@@ -2118,8 +2115,8 @@ sub format_conditions {
 	my ($WHERE, @query, @bindings);
 	foreach my $field (@$order) {
 		if (($field eq 'AND') || ($field eq 'OR') || ($field eq '(') || $field eq ')') {
-			next if (($field =~ /^(AND|OR)$/o) && (!@query || ($query[$#query] =~ /^(AND|OR)$/o)));
-			next if (($field =~ /^(\(|\))$/o) && ($query[$#query] =~ /^(\(|\))$/o));
+			next if (($field =~ /^(?:AND|OR)$/o) && (!@query || ($query[$#query] =~ /^(?:AND|OR)$/o)));
+			next if (($field =~ /^(?:\(|\))$/o) && ($query[$#query] =~ /^(?:\(|\))$/o));
 			push @query, $field;
 			next;
 		}
@@ -2180,7 +2177,7 @@ sub format_conditions {
 			} # loathe BBedit here, too!						# ( loathe BBedit
 			  elsif ($value eq ')') {							# Close paren	( loathe BBedit
 				$sql .= ')';									# END	BBEdit loathing 
-			} elsif (lc($value) =~ /(^(like|not|is)|<|>)/) {	# Allow LIKE,NOT,<,>,<=,>= blindly
+			} elsif (lc($value) =~ /^(?:like|not|is)\s|<|>/) {	# Allow LIKE,NOT,IS,<,>,<=,>= blindly
 				if ($value =~ /##/) {
 					while ($value =~ s/##(.+?)##/?/o) {
 						push(@bindings, $1);
@@ -2188,7 +2185,7 @@ sub format_conditions {
 				}
 				$sql .= "$field $value";						# can use with embeded SELECT
 		### Why do we need this code?  Uncomment if you change the else!
-		#	} elsif ($value =~ /^-?(\d+?)\.?(\d*?)$/) {			# exact match number
+		#	} elsif ($value =~ /^-?(?:\d+?)\.?(?:\d*?)$/) {			# exact match number
 		#		$sql .= "$field = ?";
 		#		push(@bindings, $value);
 		###
@@ -2604,12 +2601,28 @@ sub close {
 
 1;
 
+__END__
 
 =back
 
 =head1 REVISION HISTORY
 
  $Log: Carbon.pm,v $
+ Revision 2.36  2001/12/20 19:22:38  gefilte
+ error() - fixes dumb mistake (see the diff and you'll understand :-)
+
+ format_conditions()
+ 	- changed some RE parens into non-capturing (for efficiency)
+ 	- changed "Allow LIKE,NOT,IS" case to bind on "\s". This prevents values beginning with those letters from matching unless they are the "real deal".
+ 	(Maybe we should add a '= $value' case in case we want to match something that actually does begin with said words.  For now, avoid them :-)
+
+ 	"Do you think we should have cut this scene?"
+ 		- Bad, nasty, evil, naughty Zoot of the Castle Anthrax
+
+ Revision 2.35  2001/09/20 21:01:38  gefilte
+ new() - fixed bug in %datefields processing code which caused insert to fail
+ 		(bug introduced in rev 2.32)
+
  Revision 2.34  2000/12/12 19:05:00  gefilte
  new(), modify() - fixed incorrect usage of cpkey(), which caused relational code to fail.
 
@@ -3242,4 +3255,3 @@ could be caught.
 
 =cut
 
-__END__

@@ -1,7 +1,7 @@
 # BingoX::Argon
 # -----------------
-# $Revision: 2.8 $
-# $Date: 2000/12/12 18:48:01 $
+# $Revision: 2.9 $
+# $Date: 2001/11/20 19:11:14 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -85,7 +85,7 @@ use strict;
 use vars qw($debug $AUTOLOAD);
 
 BEGIN {
-	$BingoX::Argon::REVISION	= (qw$Revision: 2.8 $)[-1];
+	$BingoX::Argon::REVISION	= (qw$Revision: 2.9 $)[-1];
 	$BingoX::Argon::VERSION		= '1.92';
 	
 	$debug	= undef;
@@ -283,7 +283,7 @@ sub AUTOLOAD {
 	return $self->{ $lname } if (ref($self) && defined($self->{ $lname }));
 
 	## try the methods ##
-	my ($prefix,$name) = split(/_/,$lname);	# get the type and name
+	my ($prefix,$name) = split(/_/, $lname, 2);	# get the type and name
 
 	## make sure it's a "get_", "list_", or "stream_" method ##
 	return unless ($prefix && $name);
@@ -303,7 +303,7 @@ sub AUTOLOAD {
 				warn("$displayclass: $_ ==> $params->{$_}") if $debug > 1;
 			}
 		}
-		warn(Dumper($params)) if $debug > 1;
+		warn(Data::Dumper::Dumper($params)) if $debug > 1;
 		## get methods should have params of some sort ##
 		return undef if ($prefix eq 'get' && !%{ $params });
 		return $displayclass->$method( $self, $self->dbh, $params, @_ );
@@ -321,6 +321,11 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Argon.pm,v $
+ Revision 2.9  2001/11/20 19:11:14  gefilte
+ AUTOLOAD()
+ 	- named method splitting set to '2' results.  (This was breaking names which intentionally contained underscores, since the split parts were not captured.)
+ 	- fully qualified left over 'Dumper' call
+
  Revision 2.8  2000/12/12 18:48:01  useevil
   - updated version for new release:  1.92
 

@@ -1,7 +1,7 @@
 # BingoX::Chromium 
 # -----------------
-# $Revision: 2.28 $
-# $Date: 2000/12/12 18:51:57 $
+# $Revision: 2.36 $
+# $Date: 2001/11/14 23:12:26 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -33,7 +33,7 @@ DISPLAY METHODS
   $SV = $object->display_list();
   $SV = $object->display_view();
   $SV = $object->display_modify();
-  $SV = $object->display_search();				- Not Implimented Yet!
+  $SV = $object->display_search();				- Not Implemented Yet!
   $SV = $object->display_row( $field );
   $SV = $object->display_list_buttons();
   $SV = $object->display_modify_buttons();
@@ -52,8 +52,8 @@ DATA METHODS
 CLASS VARIABLE METHODS
 
 
-  $SV = $proto->db_class();
-  $SV = $proto->db_class_name();
+  $SV = $proto->data_class();
+  $SV = $proto->data_class_name();
   $SV = $proto->adminuri();
   $SV = $proto->classdesc();
   $SV = $proto->qfd();
@@ -123,7 +123,7 @@ The order in which to display fields (if one so chose to display them ;)
 
 =item * %fields
 
-A hash whose keys are colums (same as in the fieldlist array) and whose values 
+A hash whose keys are columns (same as in the fieldlist array) and whose values 
 are complex arrays. Each array index is described below.
 
 =over 4
@@ -185,6 +185,14 @@ A simple one- or two-word description of the class being administered.
 
 =back
 
+=item * $data_class
+
+The name of the data class that corresponds to the admin class. If this 
+value is not defined, it will default to the name of the admin class, with 
+the first instance of "::Admin::" changed to "::Data::".
+
+=back
+
 =head1 METHODS
 
 =over 4
@@ -202,7 +210,7 @@ use strict;
 use vars qw($AUTOLOAD $debug);
 
 BEGIN {
-	$BingoX::Chromium::REVISION	= (qw$Revision: 2.28 $)[-1];
+	$BingoX::Chromium::REVISION	= (qw$Revision: 2.36 $)[-1];
 	$BingoX::Chromium::VERSION	= '1.92';
 
 	$debug	= undef;
@@ -218,6 +226,7 @@ Apache handler gets a new display object object of the class B<it was called
 as> and calls flow against it.
 
 =cut
+
 sub handler ($$) {
 	warn "\n******************** BEGIN CLICK ************************\n\n" if ($debug);
 
@@ -231,7 +240,7 @@ sub handler ($$) {
 	my $self		= $class->new( $r );
 	my $response	= $self->flow;
 
-	warn "\n******************** END CLICK ************************\n\n" if ($debug);
+	warn "\n******************** END CLICK **************************\n\n" if ($debug);
 	return $response;
 } # END sub handler
 
@@ -244,17 +253,17 @@ sub handler ($$) {
 =item C<new> ( $r [, $conf [, $mode ] ] )
 
 Given an apache request object, returns an Admin object of the class 
-B<it was called as>.  It also sets the db_class, db_class_name, cgi, 
+B<it was called as>.  It also sets the data_class, data_class_name, cgi, 
 uri, displaymode (from $q), and section (from $q).
 
 =cut
+
 sub new {
 	my ($class, $r, $conf, $mode, $cgi) = @_;
-	$class =~ /(.+)::Admin::(.+)$/;
 	my $q = $cgi || new CGI;
 	my $self = {
-					_db_class			=> "${1}::Data::${2}",
-					_db_class_name		=> $2,
+					_data_class			=> $class->data_class(),
+					_data_class_name	=> $class->data_class_name(),
 					_cgi				=> $q,
 					_conf				=> $conf || undef,
 					_uri				=> $r->uri,
@@ -287,6 +296,7 @@ and submit_type (found in the query object).
 ?? Is this the best order to check ??
 
 =cut
+
 sub flow {
 	my $self	= shift;
 	return $self->failure('Method flow called as static.') unless ref($self);
@@ -419,6 +429,7 @@ sub flow {
 	}
 } # END sub flow
 
+
 sub failure {
 	my $self = shift;
 	return SERVER_ERROR unless ref($self);
@@ -443,6 +454,7 @@ somewhere else besides display_view().  It currently will always call
 $method against $self, so no static methods, please...
 
 =cut
+
 sub postmodify_handler {
 	my $self	= shift;
 	my $method	= shift || 'display_view';
@@ -456,6 +468,7 @@ Behaves exactly like postmodify_handler() (see above), but is called after
 the user exits the "Add a new <whatever>" screen.
 
 =cut
+
 sub postadd_handler {
 	my $self	= shift;
 	my $method	= shift || 'display_view';
@@ -474,6 +487,7 @@ sub postadd_handler {
 Prints an HTML page meant for listing all objects in class.
 
 =cut
+
 sub display_list {
 	my $self	= shift;
 	my $q		= $self->cgi;
@@ -521,11 +535,11 @@ sub display_list {
 
 	if ($q->param('parent_pcpkey')) {
 		my $parent_class	= $self->parent_class;
-		my $pclass_tfield	= $parent_class->db_class->title_field;
+		my $pclass_tfield	= $parent_class->data_class->title_field;
 		print $q->font(	{ -SIZE => 4 },
 						"For " . $parent_class->classdesc . ": " 
 						. $q->font(	{ -COLOR => 'blue' },
-									$parent_class->db_class->get(
+									$parent_class->data_class->get(
 											$self->dbh,
 											$parent_class->cpkey_params(
 													$q->param('parent_pcpkey')
@@ -627,6 +641,7 @@ Displays the buttons for display_list().
 Easy to overload if you want more buttons!
 
 =cut
+
 sub display_list_buttons {
 	my $self	= shift;
 	return undef unless (ref $self);
@@ -670,6 +685,7 @@ Easy to overload if you want more buttons!
 Just like display_list buttons.
 
 =cut
+
 sub display_modify_buttons {
 	my $self	= shift;
 #	return undef unless ref($self);
@@ -691,6 +707,7 @@ Prints an HTML page meant for viewing an object.  Itterates through fieldlist
 calling display_row for each element.
 
 =cut
+
 sub display_view {
 	my $self	= shift;
 	my $q		= $self->cgi;
@@ -811,6 +828,7 @@ Easy to overload if you want more buttons!
 Just like display_list buttons.
 
 =cut
+
 sub display_view_buttons {
 	my $self = shift;
 #	return undef unless ref($self);
@@ -837,6 +855,7 @@ Prints an HTML page meant for modifying an object.  Itterates through fieldlist
 calling display_row for each element.
 
 =cut
+
 sub display_modify {
 	my $self		= shift;
 	my $q			= $self->cgi;
@@ -891,10 +910,10 @@ sub display_modify {
 			. '<BR><UL>';
 		if (ref $self->{'_errors'} eq 'HASH') {
 			foreach (keys %{ $self->{'_errors'} }) {
-				print $q->li . $q->font($ui->{'font_error'}, ($self->fieldname($_) || $_) . ': ' . $self->{'_errors'}->{$_} . "\n");
+				print $q->li($q->font($ui->{'font_error'}, ($self->fieldname($_) || $_) . ': ' . $self->{'_errors'}->{$_}));
 			}
 		} else {
-			print $q->li . $q->font($ui->{'font_error'},$self->fieldname($_) . ': ' . $self->{'_errors'} . "\n");
+			print $q->li($q->font($ui->{'font_error'},$self->fieldname($_) . ': ' . $self->{'_errors'}));
 		}
 #		map { print  "<LI>" . $_ . "\n"} keys %{$self->{'_errors'}};
 		print "</UL><br>\n";
@@ -913,7 +932,7 @@ sub display_modify {
 		. $q->end_Tr;
 
 	foreach (@{ $self->fieldlist }) {
-		next if (($self->displaymode eq 'add') && ($_ eq $self->db_class->primary_keys->[0]));
+		next if (($self->displaymode eq 'add') && ($_ eq $self->data_class->primary_keys->[0]));
 		$self->display_row( $_ );
 	}
 
@@ -987,6 +1006,7 @@ sub display_modify {
 Returns class defined Class description as a string.
 
 =cut
+
 sub display_admin_name {
 	no strict 'refs';
 	my $self	= shift;
@@ -1004,6 +1024,7 @@ that you can overload in your subclass if you want
 the view or modify/add screens to have a custom title.
 
 =cut
+
 sub admin_name { }
 
 
@@ -1017,6 +1038,7 @@ Or you can pass it a hash ref of hidden fields,
 were key = field name and value = field value
 
 =cut
+
 sub hidden_fields {
 	my $self	= shift;
 	my $fields	= shift;
@@ -1038,6 +1060,7 @@ Overload this in your admin class if you want to set any special
 BG,text,link colors, or anything else you want to pass to start_html()
 
 =cut
+
 sub display_start_html {
 	my $self	= shift;
 	my $options	= shift || { };
@@ -1058,6 +1081,7 @@ Prints an HTML page meant for limiting what appears on the display_list page.
 Not Implimented Yet.
 
 =cut
+
 sub display_search {
 	warn "display_search method not implimented yet!";
 	return undef;
@@ -1071,6 +1095,7 @@ column has the fields descriptive name ($self->fieldname($field)) and the right
 column has the output of that fields method ($self->$field)
 
 =cut
+
 sub display_row {
 	my $self	= shift;
 	return undef unless ref $self;
@@ -1112,6 +1137,56 @@ sub display_row {
 						)
 					)
 				) . "\n";
+	} elsif (($self->fieldtype($field) eq 'password') && ($self->displaymode() ne 'view')) {
+		# Once to enter
+		print $q->Tr({ },
+				$q->td({	-VALIGN		=> 'top',
+							-ALIGN		=> 'right',
+							-WIDTH		=> 100,
+							-BGCOLOR	=> $ui->{'row_key'}
+						},
+						$q->font(
+							$ui->{'font_key'},
+							$q->b(
+								($req ? '* ' : '') . $self->fieldname( $field ) . ':'
+							)
+						)
+					)
+			.	$q->td({	-VALIGN		=> 'top',
+							-WIDTH		=> 400,
+							-BGCOLOR	=> $ui->{'row_value'}
+						},
+						$q->font(
+							$ui->{'font_value'},
+							$self->$field()
+						)
+					)
+			) . "\n"
+		# again to verify
+			. $q->Tr({ },
+				$q->td({	-VALIGN		=> 'top',
+							-ALIGN		=> 'right',
+							-WIDTH		=> 100,
+							-BGCOLOR	=> $ui->{'row_key'}
+						},
+						$q->font(
+							$ui->{'font_key'},
+							$q->b(
+								($req ? '* ' : '') . $self->fieldname( $field ) . ':'
+							)
+							. '<br/>(for verification)'
+						)
+					)
+			.	$q->td({	-VALIGN		=> 'top',
+							-WIDTH		=> 400,
+							-BGCOLOR	=> $ui->{'row_value'}
+						},
+						$q->font(
+							$ui->{'font_value'},
+							$self->$field()
+						)
+					)
+			) . "\n"
 	} else {
 		print $q->Tr({ },
 				$q->td({	-VALIGN		=> 'top',
@@ -1146,33 +1221,34 @@ sub display_row {
 
 =over 4
 
-=item C<save_data> (  )
+=item C<save_data> ( [ \%data ] )
 
-Goes through the process of calling sanity, then get_data (to get the data out 
+ Goes through the process of calling sanity, then get_data (to get the data out 
 of the query object) and then db_obj->modify.
+ Optionally takes data hashref as returned by get_data(), otherwise calls get_data() itself.  (This makes extension of save_data() possible without having to call get_data() twice.)
 
 =cut
+
 sub save_data {
 	my $self	= shift;
 	return undef unless ref $self;
-	my $dbh		= $self->dbh;
-	my $data	= $self->get_data;
-	return undef unless ref $data;
-	return undef unless $self->sanity( $data );
+	my $dbh		= $self->dbh();
+	my $data	= shift || $self->get_data();
 
 	warn 'save_data after get_data data: ' . Data::Dumper::Dumper($data) . "\n" if ($debug > 1);
-	return undef unless $self->sanity($data);
-	return undef if (defined $data && (ref($data) ne 'HASH'));
+	return undef unless (ref($data) eq 'HASH');
+	return undef unless ($self->sanity($data));
+
 	my $newself;
 	warn 'save data==> ' . Data::Dumper::Dumper($data) . "\n" if ($debug);
 	if ($self->displaymode eq 'add') {
-		if ($newself = $self->db_class->new( $dbh, $data )) {
+		if ($newself = $self->data_class->new( $dbh, $data )) {
 			warn "save_data - new succeeded\n" if ($debug > 1);
 			$self->{'_db_obj'} = $newself;
 			warn 'save_data - after new - new self ==> ' . Data::Dumper::Dumper($self->{'_db_obj'}) if ($debug > 1);
 		} else {
 			warn "save_date - new failed\n" if ($debug > 1);
-			$self->{'_errors'}->{'General Database Error'} = $self->dbh->errstr || $self->db_class->errors;
+			$self->{'_errors'}->{'General Database Error'} = $dbh->errstr || $self->data_class->errors;
 			return undef;
 		}
 	} else {
@@ -1182,7 +1258,7 @@ sub save_data {
 			warn 'save_data - after modify - new self ==> ' . Data::Dumper::Dumper($self->{'_db_obj'}) if ($debug > 1);
 		} else {
 			warn "save_date - modify failed\n" if ($debug > 1);
-			$self->{'_errors'}->{'General Database Error'} = $self->dbh->errstr || $self->db_obj->errors;
+			$self->{'_errors'}->{'General Database Error'} = $dbh->errstr || $self->db_obj->errors;
 			return undef;
 		}
 	}
@@ -1199,6 +1275,7 @@ You can optionaly pass a $data hash and a $fields hash which it will use.
 B<OPTIMIZE>
 
 =cut
+
 sub get_data {
 	my $self	= shift;
 	return undef unless ref $self;
@@ -1236,7 +1313,8 @@ sub get_data {
 			unless (defined $q->param( $qfieldname )) {
 				$q->param(-NAME => $qfieldname, -VALUE => '0');
 			}
-			$data->{$_} = $q->param( $qfieldname );
+			$data->{$_} = $q->param( $qfieldname )
+				unless (ref $db_obj && ($db_obj->$_() eq $q->param( $qfieldname )));
 		} elsif ($self->fieldtype($_) eq 'date') {
 			next unless ($q->param( $qfieldname.'_year' ));
 		
@@ -1289,14 +1367,24 @@ sub get_data {
 
 			## Jun 04 1998 21:09:55 ##
 			my $string		= sprintf("%s %2d %4d %02d:%02d:00", $month, $day, $year, $hour, $min);
-			my $timelocal	= $self->db_class->str2time( $string );
+			my $timelocal	= $self->data_class->str2time( $string );
 			my $new_date	= BingoX::Time->new( $timelocal );
-			$data->{$_}		= $new_date->strftime( $self->db_class->date_format );
+			$data->{$_}		= $new_date->strftime( $self->data_class->date_format )
+				unless (ref $db_obj && ($db_obj->$_() eq $new_date));
 
 			warn 'get_data date ==> ' . Data::Dumper::Dumper($data->{$_}) . "\n" if ($debug > 1);
 		} else {
 			warn "qfieldname ==> $qfieldname\n" if ($debug > 1);
 			next if ($self->fieldtype( $_ ) eq 'view');
+
+			## Verify that password fields match verification
+			if ($self->fieldtype($_) eq 'password') {
+				my @pw_values = $q->param( $qfieldname );
+				if ($pw_values[0] ne $pw_values[1]) {
+					$q->param( $qfieldname, '' );
+					$self->{'_errors'}->{$_} = 'passwords do not match.';
+				}
+			}
 			if ($q->param( $qfieldname ) eq 'NULL') {
 				$data->{$_} = undef;
 			} else {
@@ -1316,6 +1404,7 @@ Populates the _errors data instance in the case that the data does not conform
 to what is allowed to be entered into the database.
 
 =cut
+
 sub sanity {
 	my $self		= shift;
 	my $data_hash	= shift;
@@ -1335,8 +1424,6 @@ sub sanity {
 		$qfield	 = $self->qfieldname( $field );
 
 		my @errors = ( );
-#		my $data = (exists $data_hash->{$field}) ?
-#					$data_hash->{$field} : $self->db_obj->$field(); #$q->param($qfield);
 		my $data = (exists $data_hash->{ $field })
 					? $data_hash->{$field}
 					: (	$self->displaymode eq 'add'
@@ -1345,7 +1432,7 @@ sub sanity {
 		## Is this a required field? If it's empty,	##
 		## we can complain here and move on...		##
 		if ($req && !$data) {
-			$self->{'_errors'}{$field} = 'This field is required.';
+			$self->{'_errors'}{$field} ||= 'This field is required.';
 			next;
 		}
 
@@ -1370,8 +1457,8 @@ sub sanity {
 } # END sub sanity
 
 sub qfd		{ return "#" }
-sub pkd		{ return $_[0]->db_class->pkd }
-sub prefix	{ return $_[0]->db_class_name . $_[0]->qfd }
+sub pkd		{ return $_[0]->data_class->pkd }
+sub prefix	{ return $_[0]->data_class_name . $_[0]->qfd }
 
 
 =item C<cpkey> ( [ $db_obj ] )
@@ -1379,6 +1466,7 @@ sub prefix	{ return $_[0]->db_class_name . $_[0]->qfd }
 Returns a string representing a single composite primary key joined by $self->qfd.
 
 =cut
+
 sub cpkey {
 	my $self	= shift;
 	my $obj		= shift || $self->db_obj;
@@ -1392,11 +1480,12 @@ sub cpkey {
 Returns a params hash from the cpkey string passed.
 
 =cut
+
 sub cpkey_params {
 	my $self	= shift;
 	my $cpkey	= shift || return undef;
 	$cpkey		= (split( $self->qfd,$cpkey ))[-1];
-	return $self->db_class->cpkey_params( $cpkey );
+	return $self->data_class->cpkey_params( $cpkey );
 } # END sub cpkey_param
 
 
@@ -1405,6 +1494,7 @@ sub cpkey_params {
 Returns a cpkey with a class name + $qfd in front of it.
 
 =cut
+
 sub pcpkey {
 	my $self	= shift;
 	my $obj		= shift || $self->db_obj;
@@ -1421,15 +1511,16 @@ B<OPTIMIZE>  Needs work.  Doesn't appear to use Carboniums dbh method thus
 thus doesn't use cached dbh.
 
 =cut
+
 sub dbh {
 	my $self		= shift;
 	return $self->{'_dbh'} if (ref($self) && ref($self->{'_dbh'}));
-	my $db_class	= $self->db_class;
-	my $dbh			= $db_class->dbh;
+	my $data_class	= $self->data_class;
+	my $dbh			= $data_class->dbh;
 	$self->{'_dbh'}	= $dbh if (ref $self);
 	my $r			= $self->r;
 	if (ref $r) {
-		$r->register_cleanup(sub { $db_class->purge_dbh }) unless ($r->notes('chromium_cleanup'));
+		$r->register_cleanup(sub { $data_class->purge_dbh }) unless ($r->notes('chromium_cleanup'));
 		$r->notes('chromium_cleanup', 1);
 	}
 	return $dbh;
@@ -1447,20 +1538,21 @@ substr()'d to the data class' C<title_size> or by default 80 chars.
 B<OPTIMIZE>
 
 =cut
+
 sub get_list_hash {
 	my $self		= shift;
 	my $class		= ref($self) || $self;
 	my $selection	= shift || $self->selection;
-	my $title_size	= $self->db_class->title_size || 80;
-	my $title_field	= $self->db_class->title_field;
-	my $fields		= $self->db_class->primary_keys;
+	my $title_size	= $self->data_class->title_size || 80;
+	my $title_field	= $self->data_class->title_field;
+	my $fields		= $self->data_class->primary_keys;
 	my $sort		= [ ];
-	unless ($self->db_class->content_fields->{ $title_field }) {
+	unless ($self->data_class->content_fields->{ $title_field }) {
 		push(@$fields, $title_field);
 		$sort		= [ $title_field ];
 	}
 
-	my $stream		= $self->db_class->stream_obj(
+	my $stream		= $self->data_class->stream_obj(
 								$self->dbh,
 								$selection,
 								$fields,
@@ -1490,6 +1582,7 @@ key individually.
 B<OPTIMIZE>
 
 =cut
+
 sub db_obj {
 	my $self	= shift;
 	return undef unless ref($self);
@@ -1503,9 +1596,9 @@ sub db_obj {
 		$params = $self->cpkey_params( $q->param('cpkey') );
 		warn 'params ==> ' . Data::Dumper::Dumper( $params ) . "\n" if ($debug > 3);
 	} elsif ($q->param('ID')) {		# BAD BAD BAD DOG!  Just in case.
-		$params->{ $self->db_class->primary_keys->[0] } = $q->param('ID');
+		$params->{ $self->data_class->primary_keys->[0] } = $q->param('ID');
 	} else {						# If the primary keys are specified individually.
-		foreach (@{ $self->db_class->primary_keys }) {
+		foreach (@{ $self->data_class->primary_keys }) {
 			return undef unless $q->param($_);
 			my $prefix = $self->prefix;
 			$q->param($_) =~ /^$prefix(.*)/;
@@ -1514,7 +1607,7 @@ sub db_obj {
 	}
 
 	## get it from the database. Should we be using get? ##
-	$self->{'_db_obj'} = $self->db_class->get( $self->dbh, $params );
+	$self->{'_db_obj'} = $self->data_class->get( $self->dbh, $params );
 } # END sub db_obj
 
 
@@ -1524,33 +1617,43 @@ sub db_obj {
 
 =over 4
 
+=item C<data_class> (  )
 =item C<db_class> (  )
 
-Returns class defined db_class as a string.
+Returns the data class for the current display class (from the class 
+variable C<$data_class>).
 
 =cut
-sub db_class {
-	my $self		= shift;
-	return $self->{'_db_class'} if (ref $self);
-	my $db_class	= $self;
-	$db_class		=~ s/Admin/Data/;
-	$self->{'_db_class'} = $db_class if (ref $self);
-	return $db_class;
-} # END sub db_class
+
+sub data_class {
+	my $self	= shift;
+	return $self->{'_data_class'} if (ref $self);
+	my $class	= ref($self) || $self;
+	no strict 'refs';
+	my $dc = ${"${class}::data_class"};
+	unless (defined $dc) {
+		($dc = $class) =~ s/::Admin::/::Data::/;
+		${"${class}::data_class"} = $dc;
+	}
+	return $dc;
+} # END of data_class
+*db_class = \&data_class;				# Backward compatibility
 
 
+=item C<data_class_name> (  )
 =item C<db_class_name> (  )
 
 Returns the rightmost part of the db_class name (thats the text right of the ::)
 
 =cut
-sub db_class_name {
+
+sub data_class_name {
 	my $self		= shift;
-	return $self->{'_db_class_name'} if (ref $self);
-	$self->db_class	=~ /^.*:(.*)/;
-	$self->{'_db_class_name'} = $1 if (ref $self);
+	return $self->{'_data_class_name'} if (ref $self);
+	$self->data_class	=~ /^.*:(.*)/;
 	return $1;
-} # END sub db_class_name
+} # END sub data_class_name
+*db_class_name = \&data_class_name;		# Backward compatibility
 
 
 =item C<ui> (  )
@@ -1562,6 +1665,7 @@ create a ui() method in either the Admin class or the subclass
 and modify the details to your preference.
 
 =cut
+
 sub ui {
 	my $self	= shift;
 	return $self->{'_ui'} if (ref($self) && ref($self->{'_ui'}));
@@ -1590,6 +1694,7 @@ sub ui {
 Returns class defined children as an arrayref.
 
 =cut
+
 sub children {
 	no strict 'refs';
 	my $self	= shift;
@@ -1603,6 +1708,7 @@ sub children {
 Returns class defined parents as an arrayref.
 
 =cut
+
 sub parents {
 	no strict 'refs';
 	my $self	= shift;
@@ -1616,6 +1722,7 @@ sub parents {
 Returns cached parent class
 
 =cut
+
 sub parent_class {
 	return $_[0]->{'_parent_class'};
 } # END of parent_class
@@ -1626,6 +1733,7 @@ sub parent_class {
 Returns class defined URI as a string.
 
 =cut
+
 sub adminuri {
 	no strict 'refs';
 	my $self	= shift;
@@ -1640,6 +1748,7 @@ sub adminuri {
 Returns class defined Class description as a string.
 
 =cut
+
 sub classdesc {
 	no strict 'refs';
 	my $self	= shift;
@@ -1654,6 +1763,7 @@ sub classdesc {
 NEEDS POD
 
 =cut
+
 sub adminclass {
 	my $proto	= shift;
 	my $class	= shift;
@@ -1674,6 +1784,7 @@ sub adminclass {
 Returns the class defined fieldlist as an arrayref.
 
 =cut
+
 sub fieldlist {
 	no strict 'refs';
 	my $self	= shift;
@@ -1687,6 +1798,7 @@ sub fieldlist {
 Returns class defined fields hashref.
 
 =cut
+
 sub fields {
 	no strict 'refs';
 	my $self	= shift;
@@ -1702,13 +1814,16 @@ name as defined in the class defined field hash.  This is the [0]
 element of that keys array value.
 
 =cut
+
 sub fieldname {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	my $field	= shift;
-	return { %{"${class}::fields"} }->{$field}[0];
-} # END sub fieldtypes
+	my $fields	= $class->fields();
+	return undef unless (defined %$fields);
+	return $fields->{$field}[0];
+} # END sub fieldname
 
 
 =item C<fieldtype> ( $field )
@@ -1718,12 +1833,15 @@ type as defined in the class defined field hash.  This is the [1]
 element of that keys array value.
 
 =cut
+
 sub fieldtype {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	my $field	= shift;
-	return { %{"${class}::fields"} }->{$field}[1];
+	my $fields	= $class->fields();
+	return undef unless (defined %$fields);
+	return $fields->{$field}[1];
 } # END sub fieldtype
 
 
@@ -1734,12 +1852,15 @@ options as defined in the class defined field hash.  This is the
 [2] element of that keys array value.
 
 =cut
+
 sub fieldhtmloptions {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	my $field	= shift;
-	return { %{"${class}::fields"} }->{$field}[2];
+	my $fields	= $class->fields();
+	return undef unless (defined %$fields);
+	return $fields->{$field}[2];
 } # END sub fieldhtmloptions
 
 
@@ -1750,12 +1871,15 @@ class (if it exists) as defined in the class defined field hash.
 This is the [3] element of that keys array value.
 
 =cut
+
 sub fieldrelclass {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	my $field	= shift;
-	return { %{"${class}::fields"} }->{$field}[3][0];
+	my $fields	= $class->fields();
+	return undef unless (defined(%$fields) && exists($fields->{$field}[3]));
+	return $fields->{$field}[3][0];
 } # END sub fieldrelclass
 
 =item C<fieldrelclasstype> ( $field )
@@ -1765,12 +1889,15 @@ class (if it exists) as defined in the class defined field hash.
 This is the [3] element of that keys array value.
 
 =cut
+
 sub fieldrelclasstype {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	my $field	= shift;
-	return { %{"${class}::fields"} }->{$field}[3]->[1] || undef;
+	my $fields	= $class->fields();
+	return undef unless (defined(%$fields) && exists($fields->{$field}[3]));
+	return $fields->{$field}[3][1];
 } # END sub fieldrelclasstype
 
 
@@ -1781,12 +1908,15 @@ information as defined in the class defined field hash.
 This is the [4] element of that keys array value.
 
 =cut
+
 sub fieldoptions {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	my $field	= shift;
-	return { %{"${class}::fields"} }->{$field}[4] || undef;
+	my $fields	= $class->fields();
+	return undef unless (defined %$fields);
+	return $fields->{$field}[4];
 } # END sub fieldoptions
 
 
@@ -1797,12 +1927,15 @@ information as defined in the class defined field hash.
 This is the [5] element of that keys array value.
 
 =cut
+
 sub fieldsanity {
 	no strict 'refs';
 	my $self	= shift;
 	my $class	= ref($self) || $self;
 	my $field	= shift;
-	return { %{"${class}::fields"} }->{$field}[5] || undef;
+	my $fields	= $class->fields();
+	return undef unless (defined %$fields);
+	return $fields->{$field}[5];
 } # END sub fieldsanity
 
 
@@ -1833,6 +1966,7 @@ Returns the cached section (set in new).
 Returns the cached uri displaymode (set in new).
 
 =cut
+
 sub uri				{ $_[0]->{'_uri'}			}
 sub cgi				{ $_[0]->{'_cgi'}			}
 sub conf			{ $_[0]->{'_conf'}			}
@@ -1846,6 +1980,7 @@ Object Method:
 Returns Apache Request object.
 
 =cut
+
 sub r {
 	return undef unless (defined $ENV{'MOD_PERL'} && ref $_[0]);
 	$_[0]->{'_r'} ||= Apache->request;
@@ -1858,6 +1993,7 @@ Returns a hash reference containing the parameters that specify the current
 selection. If a new value is passed, it sets the selection to that value.
 
 =cut
+
 sub selection {
 	my $self	= shift;
 	my $value	= shift;
@@ -1887,6 +2023,7 @@ overloading Administration field variables, use this to get the INPUT TYPE NAME.
 ie.  <INPUT TYPE="text" NAME="$self->qfieldname('username')">
 
 =cut
+
 sub qfieldname {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -1905,6 +2042,7 @@ Object Method:
 Returns the Main Index Path.
 
 =cut
+
 sub main_index {
 	my $self	= shift;
 	my $path	= $self->r->dir_config('AdminMainIndex') || '/';
@@ -1921,6 +2059,7 @@ Gets the default field params based on the fieldname and returns a
 set of date form fields or in viewable format if the displaymode is 'view'.
 
 =cut
+
 sub HTML_time {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -1931,8 +2070,12 @@ sub HTML_time {
 
 	my $hr24		= $qoptions->{'-SHOW_24HOURS'};
 
-	my $date_obj	= BingoX::Time->new;
+	my $date_obj;
 	$date_obj		= $self->db_obj->$fieldname() unless ($self->displaymode eq 'add');
+	if (!ref($date_obj)) {
+		return undef if ($self->displaymode eq 'view');
+		$date_obj	= BingoX::Time->new();
+	}
 
 	my ($hour, $minute, $ampm);
 	## get hour from the date object ##
@@ -2009,6 +2152,7 @@ Gets the default field params based on the fieldname and returns a
 set of date form fields or in viewable format if the displaymode is 'view'.
 
 =cut
+
 sub HTML_day {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2016,10 +2160,14 @@ sub HTML_day {
 	my $qoptions	= shift || $self->fieldhtmloptions( $fieldname ) || { };
 	my $q			= $self->cgi;
 	my $qfieldname	= $self->qfieldname( $fieldname );
-
-	my $date_obj	= BingoX::Time->new;
-	$date_obj		= $self->db_obj->$fieldname() unless ($self->displaymode eq 'add');
 	
+	my $date_obj;
+	$date_obj		= $self->db_obj->$fieldname() unless ($self->displaymode eq 'add');
+	if (!ref($date_obj)) {
+		return undef if ($self->displaymode eq 'view');
+		$date_obj	= BingoX::Time->new();
+	}
+
 	return $date_obj->mday if ($self->displaymode eq 'view');
 
 	if ($qoptions->{'-TYPE'} =~/view/io) {
@@ -2052,6 +2200,7 @@ Gets the default field params based on the fieldname and returns a
 set of date form fields or in viewable format if the displaymode is 'view'.
 
 =cut
+
 sub HTML_month {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2061,8 +2210,12 @@ sub HTML_month {
 	my $qfieldname	= $self->qfieldname( $fieldname );
 
 	my $format		= $qoptions->{'-FORMAT'} || "%B %e %Y";
-	my $date_obj	= BingoX::Time->new;
+	my $date_obj;
 	$date_obj		= $self->db_obj->$fieldname() unless ($self->displaymode eq 'add');
+	if (!ref($date_obj)) {
+		return undef if ($self->displaymode eq 'view');
+		$date_obj	= BingoX::Time->new();
+	}
 
 	return $date_obj->mon if ($self->displaymode eq 'view');
 
@@ -2097,6 +2250,7 @@ Gets the default field params based on the fieldname and returns a
 set of date form fields or in viewable format if the displaymode is 'view'.
 
 =cut
+
 sub HTML_year {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2106,8 +2260,12 @@ sub HTML_year {
 	my $qfieldname	= $self->qfieldname( $fieldname );
 
 	my $format		= $qoptions->{'-FORMAT'} || "%B %e %Y";
-	my $date_obj	= BingoX::Time->new;
+	my $date_obj;
 	$date_obj		= $self->db_obj->$fieldname() unless ($self->displaymode eq 'add');
+	if (!ref($date_obj)) {
+		return undef if ($self->displaymode eq 'view');
+		$date_obj	= BingoX::Time->new();
+	}
 	my $start		= $qoptions->{'-YEAR_START'}		|| 20;
 	my $end			= $qoptions->{'-YEAR_END'}			|| 20;
 	my ($values, $year, $size, $max);
@@ -2167,6 +2325,7 @@ set of date form fields or in viewable format if the displaymode is 'view'.
 B<Needs to be less Sybase Dependant and handle Time>
 
 =cut
+
 sub HTML_date {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2184,8 +2343,12 @@ sub HTML_date {
 	my ($year, $yhidden)	= $self->HTML_year(	$fieldname, $qoptions );
 	my ($time, $thidden)	= $self->HTML_time(	$fieldname, $qoptions );
 
-	my $date_obj	= BingoX::Time->new;
+	my $date_obj;
 	$date_obj		= $self->db_obj->$fieldname() unless ($self->displaymode eq 'add');
+	if (!ref($date_obj)) {
+		return undef if ($self->displaymode eq 'view');
+		$date_obj	= BingoX::Time->new();
+	}
 
 	## if in display view mode get the date object from the scalar values ##
 	if ($self->displaymode eq 'view') {
@@ -2222,7 +2385,8 @@ Gets the default field params based on the fieldname and returns the value
 in viewable format.
 
 =cut
-sub HTML_view{
+
+sub HTML_view {
 	my $self		= shift;
 	return undef unless ref($self);
 	my $fieldname	= shift;
@@ -2243,7 +2407,8 @@ Gets the default field params based on the fieldname and returns the value
 as a hidden input field.
 
 =cut
-sub HTML_hidden{
+
+sub HTML_hidden {
 	my $self		= shift;
 	return undef unless ref($self);
 	my $fieldname	= shift;
@@ -2273,6 +2438,7 @@ Gets the default field params based on the fieldname and returns the value
 in a text input field or in viewable format if the displaymode is 'view'.
 
 =cut
+
 sub HTML_text {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2294,6 +2460,37 @@ sub HTML_text {
 						) . "\n";
 } # END sub HTML_text
 
+=item C<HTML_password> ( $fieldname [, $qoptions ] )
+
+Object Method:
+
+Generic form field method called by AUTOLOAD.  
+Gets the default field params based on the fieldname and returns the value 
+in a password input field with a corresponding or in an obscured format if the displaymode is 'view'.
+
+=cut
+
+sub HTML_password {
+	my $self		= shift;
+	return undef unless ref($self);
+	my $fieldname	= shift;
+	my $qoptions	= shift || $self->fieldhtmloptions( $fieldname );
+	my $q			= $self->cgi;
+	my $qfieldname	= $self->qfieldname( $fieldname );
+	($self->displaymode eq 'view')
+	? '&lt;NOT DISPLAYED&gt;'
+	: $q->password_field(-NAME		=> $qfieldname,
+						 -SIZE		=> $qoptions->{'-SIZE'}		|| 50,
+						 -MAXLENGTH	=> $qoptions->{'-MAXLENGTH'}|| 200,
+						 -OVERRIDE	=> $qoptions->{'-OVERRIDE'} || 1,
+						 -DEFAULT	=> (defined($q->param( $qfieldname ))
+										?	$q->param( $qfieldname )
+										:	(($self->displaymode eq 'modify')
+											? $self->db_obj->$fieldname()
+											: ($qoptions->{'-DEFAULT'} || '')))
+						) . "\n";
+} # END sub HTML_password
+
 
 =item C<HTML_textarea> ( $fieldname [, $qoptions ] )
 
@@ -2305,6 +2502,7 @@ the value in a text input field or in viewable format if the
 displaymode is 'view'.
 
 =cut
+
 sub HTML_textarea {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2346,6 +2544,7 @@ vaules & labels fields. USually always overloaded in the subclasses.
 B<OPTIMIZE>
 
 =cut
+
 sub HTML_popup {
 	my $self		= shift;
 	my $class		= ref($self) || return undef;
@@ -2424,6 +2623,7 @@ Gets the default field params based on the fieldname and returns the value
 in a group of radio buttons or in viewable format if the displaymode is 'view'.
 
 =cut
+
 sub HTML_radio {
 	my $self		= shift;
 	my $class		= ref($self) || return undef;
@@ -2487,6 +2687,7 @@ vaules & labels fields. USually always overloaded in the subclasses.
 B<OPTIMIZE>
 
 =cut
+
 sub HTML_scrolling {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2539,7 +2740,7 @@ sub HTML_scrolling {
 								:	(($self->displaymode eq 'modify')
 										?	[
 												map {
-														$self->pcpkey( $_ )
+														$_->cpkey()
 													} @$selected
 											]
 										: ($qoptions->{'-DEFAULT'} || [ ])))
@@ -2560,6 +2761,7 @@ Note: Not used yet because its not easy to populate the
 vaules & labels fields. USually always overloaded in the subclasses.
 
 =cut
+
 sub HTML_checkbox {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2573,12 +2775,9 @@ sub HTML_checkbox {
 			-NAME		=> $qfieldname,
 			-CHECKED	=> $self->displaymode eq 'modify'
 						?	$self->db_obj->$fieldname()
-						:	'checked',
+						:	$qoptions->{'-CHECKED'},
 			-VALUE		=> $qoptions->{'-VALUE'} || '1',
-			-LABEL		=> $qoptions->{'-LABEL'} || 'TURN ME ON',
-			-DEFAULT	=> defined($q->param( $qfieldname ))
-						?	$q->param( $qfieldname )
-						:	($qoptions->{'-DEFAULT'} || '')
+			-LABEL		=> $qoptions->{'-LABEL'} || ''
 		);
 } # END sub HTML_checkbox
 
@@ -2592,6 +2791,7 @@ Gets the default field params based on the fieldname and returns the value
 in a form file upload field or in viewable format if the displaymode is 'view'.
 
 =cut
+
 sub HTML_file {
 	my $self		= shift;
 	return undef unless ref($self);
@@ -2627,6 +2827,7 @@ If C<$data> matches the regular expression in C<$regex>, returns an empty
 string. Otherwise, returns C<$error> or a default error message.
 
 =cut
+
 sub sane_regex {
 	my $self	= shift;
 	my $data	= shift;
@@ -2644,6 +2845,7 @@ Makes sure that C<$data> is no more than C<$length> characters long. Returns
 an error message on failure, an empty string on success.
 
 =cut
+
 sub sane_maxlength {
 	my $self	= shift;
 	my $data	= shift;
@@ -2660,6 +2862,7 @@ Makes sure that C<$data> is at least C<$length> characters long. Returns an
 error message on failure, an empty string on success.
 
 =cut
+
 sub sane_minlength {
 	my $self	= shift;
 	my $data	= shift;
@@ -2679,6 +2882,7 @@ columns fieldtype is from fieldtype($name).  It then calls that type
 of HTML display method and passed $name to it.
 
 =cut
+
 sub AUTOLOAD {
 	return if $AUTOLOAD =~ /::DESTROY$/;
 	my $self	= shift;
@@ -2699,6 +2903,80 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Chromium.pm,v $
+ Revision 2.36  2001/11/14 23:12:26  gefilte
+ save_data() - now optionally takes \%data, the result of get_data().
+
+ RATIONALE :
+ 	Consider a case when you want to override save_data() in a method which
+ calls SUPER::save_data() (arguably a very useful feature.)  Now suppose that
+ your save_data() method needs to see the result of get_data(), or possibly even
+ manipulate those results (although that should be accomplished by overriding
+ get_data()), before calling SUPER::save_data(). Before this change, the
+ (arguably expensive) call to get_data() would need to be repeated.  With this
+ change, passing a \%data to save_data() will circumvent the need for the
+ second call.
+ 	I considered using instance data to cache the results of get_data(), but
+ since get_data() can be optionally called with a preset \%data hash this
+ feature, while solving the efficiency problem, would open the door to more bugs.
+
+ 	"Did you make sure the NO_BUGS flag is on?  Well that's your problem!"
+ 		- Colin Bielen (paraphrase)
+
+ Revision 2.35  2001/11/14 22:53:49  gefilte
+ Fixed some POD
+
+ Revision 2.34  2001/10/19 22:23:54  gefilte
+ HTML_scrolling() - now sets -DEFAULT properly to what is in the database
+ 	(don't know if this ever worked right, but it didn't when I tried it. check out the tiny diff :-)
+
+ Revision 2.33  2001/10/12 00:50:34  gefilte
+ display_modify() - fixed output of 'li' tags (cosmetic)
+
+ Added support for fields of type 'password' :
+ 	- added method HTML_password()
+ 	- added special case to display_row() which displays the password field twice (for verification purposes) unless displaymode is 'view'
+ 	- get_data() verifies that the two fields are alike, otherwise it sets and _error and blanks the field out (so it doesn't persist)
+ 	- sanity() doesn't set the 'required' error if an error is already set
+
+ N.B. - get_data() is setting an error state, normally only done by sanity(). This may not be the right approach, but I couldn't think of a more efficient one than this, since the field being verified (essentially the second password field) will not be examined by sanity().
+
+ Revision 2.32  2001/10/05 01:31:31  gefilte
+ HTML_checkbox() - made slightly MORE useful than the last revision!
+
+ Revision 2.31  2001/10/04 23:28:00  gefilte
+ get_data()
+ 	- fixed procedures for parsing dates and checkboxes so that they
+ 	  do NOT add to the %$data hashref unless the data has in fact changed
+ 	  from what is in the $db_obj.
+
+ HTML_checkbox() - made more usable :-)
+
+ 	"If only there were evil people somewhere insidiously committing evil deeds and it were necessary only to separate them from the rest of us and destroy them.  But the line dividing good and evil cuts through the heart of every human being.  And who is willing to destroy a piece of his own heart?"
+ 		- Aleksandr Isaevich Solzhenitsyn, novelist, Nobel laureate (1918-)
+
+ Revision 2.30  2001/09/29 00:29:22  gefilte
+ db_class(), db_class_name() - renamed to data_class(), data_class_name()
+ 	- this is consistent with Cobalt's naming scheme
+ 	- left symbolrefs to old names for backward compatibility
+ 	- changed ALL calls and documentary references to these methods to new names
+ 	- changed procedure to ascertain data_class to FIRST look at new class data member (below), then try using the standard BingoX class naming scheme
+
+ added class data $data_class so that you can set an arbitrary class as your Carbon-based data class
+
+ new() - uses data_class() methods to populate class data instead of figuring it out on its own
+
+ fieldname(), fieldtype(), fieldhtmloptions(), fieldsrelclass(), rieldrelclasstype(), fieldoptions(), fieldsanity()
+ 	- now verify the existence of array elements before attempting to read them (who thought you could get away with not doing this????)
+
+ HTML_time(), HTML_day(), HTML_month(), HTML_year(), HTML_date()
+ 	- now return undef if displaymode() is 'view' and referenced datetime field is empty
+
+ fixed some documentation typos
+
+ Revision 2.29  2001/09/27 18:10:22  gefilte
+ save_data() - cleaned up $data prep
+ 	($data was verified twice! sanity() was being called twice! INSANITY!)
+
  Revision 2.28  2000/12/12 18:51:57  useevil
   - updated version for new release:  1.92
 
