@@ -1,7 +1,7 @@
 # BingoX::Chromium 
 # -----------------
-# $Revision: 2.22 $
-# $Date: 2000/09/19 23:01:56 $
+# $Revision: 2.28 $
+# $Date: 2000/12/12 18:51:57 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -202,8 +202,8 @@ use strict;
 use vars qw($AUTOLOAD $debug);
 
 BEGIN {
-	$BingoX::Chromium::REVISION	= (qw$Revision: 2.22 $)[-1];
-	$BingoX::Chromium::VERSION	= '1.91';
+	$BingoX::Chromium::REVISION	= (qw$Revision: 2.28 $)[-1];
+	$BingoX::Chromium::VERSION	= '1.92';
 
 	$debug	= undef;
 
@@ -224,11 +224,15 @@ sub handler ($$) {
 	my $class	= shift;
 	my $r		= shift;
 
-	my $self	= $class->new( $r );
-	my $result	= $self->flow;
+	# Prepare request handler for uncached HTML response
+	$r->content_type('text/html');
+	$r->no_cache(1);
+
+	my $self		= $class->new( $r );
+	my $response	= $self->flow;
 
 	warn "\n******************** END CLICK ************************\n\n" if ($debug);
-	return $result
+	return $response;
 } # END sub handler
 
 =back
@@ -237,7 +241,7 @@ sub handler ($$) {
 
 =over 4
 
-=item C<new> ( $r, [ $conf, [, $mode ] ] )
+=item C<new> ( $r [, $conf [, $mode ] ] )
 
 Given an apache request object, returns an Admin object of the class 
 B<it was called as>.  It also sets the db_class, db_class_name, cgi, 
@@ -245,19 +249,20 @@ uri, displaymode (from $q), and section (from $q).
 
 =cut
 sub new {
-	my ($class, $r, $conf, $mode,$cgi) = @_;
+	my ($class, $r, $conf, $mode, $cgi) = @_;
 	$class =~ /(.+)::Admin::(.+)$/;
 	my $q = $cgi || new CGI;
-	my $self = { _db_class			=> "${1}::Data::${2}",
-			_db_class_name		=> $2,
-			_cgi				=> $q,
-			_conf				=> $conf || undef,
-			_uri				=> $r->uri,
-			_r					=> $r,				# Apache request object
-			_displaymode		=> lc($q->param('displaymode')) || $mode || '',
-			_errors				=> { },
-			_section			=> $q->param('section') || '',
-	};
+	my $self = {
+					_db_class			=> "${1}::Data::${2}",
+					_db_class_name		=> $2,
+					_cgi				=> $q,
+					_conf				=> $conf || undef,
+					_uri				=> $r->uri,
+					_r					=> $r,				# Apache request object
+					_displaymode		=> lc($q->param('displaymode')) || $mode || '',
+					_errors				=> { },
+					_section			=> $q->param('section') || '',
+				};
 	if ($q->param('parent_pcpkey')) {
 		my $parentclass = "${1}::Admin::" . substr($q->param('parent_pcpkey'),0,index($q->param('parent_pcpkey'),$class->qfd));
 		$self->{'_parent_class'} = $parentclass;
@@ -289,7 +294,8 @@ sub flow {
 	my $q		= $self->cgi;
 
 
-	if (my $other_class = (grep { /^child##(.+)$/ } ($q->param))[0]) {
+	my $other_class;
+	if ($other_class = (grep { /^child##(.+)$/ } ($q->param))[0]) {
 		$q->delete($other_class);
 		$other_class = substr($other_class,7);
 
@@ -303,7 +309,7 @@ sub flow {
 		my $new_admin = $new_class->new($self->r,undef,undef,$q);
 		$new_admin->flow;
 
-	} elsif (my $other_class = (grep { /^parent##(.+)$/ } ($q->param))[0]) {
+	} elsif ($other_class = (grep { /^parent##(.+)$/ } ($q->param))[0]) {
 		$q->delete($other_class);
 		$other_class = substr($other_class,8);		warn "flow - displaymode parent\n" if ($debug > 1);
 
@@ -475,10 +481,7 @@ sub display_list {
 	my $r		= $self->r;
 	my $ui		= $self->ui;
 
-	if ($r) {
-		$r->status(OK);
-		$r->content_type('text/html');
-	} else {
+	unless (ref $r) {
 		print $q->header;
 	}
 
@@ -696,10 +699,7 @@ sub display_view {
 	my $ui		= $self->ui;
 	$self->{'_displaymode'} = 'view';
 
-	if ($r) {
-		$r->status(OK);
-		$r->content_type('text/html');
-	} else {
+	unless (ref $r) {
 		print $q->header;
 	}
 
@@ -845,10 +845,7 @@ sub display_modify {
 	my $r			= $self->r;
 	my $ui			= $self->ui;
 
-	if ($r) {
-		$r->status(OK);
-		$r->content_type('text/html');
-	} else {
+	unless (ref $r) {
 		print $q->header;
 	}
 
@@ -1377,7 +1374,7 @@ sub pkd		{ return $_[0]->db_class->pkd }
 sub prefix	{ return $_[0]->db_class_name . $_[0]->qfd }
 
 
-=item C<cpkey> (  )
+=item C<cpkey> ( [ $db_obj ] )
 
 Returns a string representing a single composite primary key joined by $self->qfd.
 
@@ -1901,7 +1898,7 @@ sub qfieldname {
 } # END of qfieldname
 
 
-=item C<qfieldname> ( $fieldname )
+=item C<main_index> (  )
 
 Object Method:
  
@@ -1911,9 +1908,6 @@ Returns the Main Index Path.
 sub main_index {
 	my $self	= shift;
 	my $path	= $self->r->dir_config('AdminMainIndex') || '/';
-	my $host	= $self->r->hostname;
-	my $port	= $self->r->get_server_port;
-	return ($port eq 443 ? 'https' : 'http') . "://$host:$port$path" unless ($path =~ /^http:/);
 	return $path;
 } # END of main_index
 
@@ -2705,8 +2699,29 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Chromium.pm,v $
- Revision 2.22  2000/09/19 23:01:56  dougw
- Version update
+ Revision 2.28  2000/12/12 18:51:57  useevil
+  - updated version for new release:  1.92
+
+ Revision 2.27  2000/10/20 00:24:15  zhobson
+ Minor changes to synopsis of new() in the docs
+
+ Revision 2.26  2000/10/17 00:57:47  dweimer
+ - corrected POD for main_index()
+ - changed main_index()
+
+ Revision 2.25  2000/09/20 21:03:27  dweimer
+ Merged one last portion from the old tree.
+
+ Revision 2.24  2000/09/20 21:00:22  dweimer
+ Merged David's changes.
+ His comment:
+ handler() method now sets up Apache response settings instead of display_*() methods.
+
+ Revision 2.23  2000/09/20 00:31:59  zhobson
+ Fixed a scope warning in flow() (used "my $other_class" twice in the same scope)
+
+ Revision 2.22  2000/09/19 23:40:59  dweimer
+ Version update 1.91
 
  Revision 2.21  2000/09/13 20:58:27  adam
   - in get_data, changed how dates are handled if SHOW_24HOURS is off

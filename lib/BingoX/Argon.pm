@@ -1,7 +1,7 @@
 # BingoX::Argon
 # -----------------
-# $Revision: 2.5 $
-# $Date: 2000/09/19 23:01:56 $
+# $Revision: 2.8 $
+# $Date: 2000/12/12 18:48:01 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -85,10 +85,14 @@ use strict;
 use vars qw($debug $AUTOLOAD);
 
 BEGIN {
-	$BingoX::Argon::REVISION	= (qw$Revision: 2.5 $)[-1];
-	$BingoX::Argon::VERSION		= '1.91';
+	$BingoX::Argon::REVISION	= (qw$Revision: 2.8 $)[-1];
+	$BingoX::Argon::VERSION		= '1.92';
 	
 	$debug	= undef;
+
+	if ($debug) {
+		eval 'use Data::Dumper';
+	}
 }
 
 =item C<new> ( [ \%data ] )
@@ -226,8 +230,8 @@ Deletes from the cgi params.
 
 =cut
 sub delete {
-	my $self 	= shift;
-	my $q 		= $self->cgi;
+	my $self	= shift;
+	my $q		= $self->cgi;
 	foreach (@_) { $q->delete( $_ ) }
 	return;
 } # END of delete
@@ -272,6 +276,9 @@ sub AUTOLOAD {
 	my $lname	= $AUTOLOAD;
 	$lname		=~ s/^.*://o;				# strip fully-qualified portion
 
+	warn("AUTOLOADing ".(ref($self)||$self)."::${lname} in BingoX::Argon")
+		if $debug;
+
 	## return instance data if it exists ##
 	return $self->{ $lname } if (ref($self) && defined($self->{ $lname }));
 
@@ -293,8 +300,10 @@ sub AUTOLOAD {
 			## explicitly passed params override what's in the CGI object ##
 			unless (exists $params->{$_}) {
 				$params->{$_} = $q->param($_) if (defined $q->param($_));
+				warn("$displayclass: $_ ==> $params->{$_}") if $debug > 1;
 			}
 		}
+		warn(Dumper($params)) if $debug > 1;
 		## get methods should have params of some sort ##
 		return undef if ($prefix eq 'get' && !%{ $params });
 		return $displayclass->$method( $self, $self->dbh, $params, @_ );
@@ -312,8 +321,17 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Argon.pm,v $
- Revision 2.5  2000/09/19 23:01:56  dougw
- Version update
+ Revision 2.8  2000/12/12 18:48:01  useevil
+  - updated version for new release:  1.92
+
+ Revision 2.7  2000/10/20 17:23:18  gefilte
+ Removed Data::Dumper requirement.  (Only loaded if $debug is on.)
+
+ Revision 2.6  2000/10/20 00:28:24  zhobson
+ Added some useful debug messages to AUTOLOAD
+
+ Revision 2.5  2000/09/19 23:40:00  dweimer
+ Version update 1.91
 
  Revision 2.4  2000/08/31 21:54:18  greg
  Added COPYRIGHT information.
@@ -324,14 +342,14 @@ __END__
 
  "To the first approximation, syntactic sugar is trivial to implement.
   To the second approximation, the first approximation is totally bogus."
- 	-Larry Wall
+    -Larry Wall
 
  Revision 2.3  2000/08/01 00:38:28  thai
   - added cgi accessor methods:
-  	query_url()
- 	param()
- 	escape()
- 	delete()
+    query_url()
+    param()
+    escape()
+    delete()
 
  Revision 2.2  2000/07/12 19:28:21  thai
   - fixed POD, cleaned up code

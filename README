@@ -8,7 +8,7 @@ DESCRIPTION
     meant to dramatically reduce the time required to build large dynamic,
     database drive web sites and applications. BingoX is also a methodology for
     building web sites and applications which enables groups of developers to
-    work together in a more consistant manner.
+    work together in a more consistent manner.
 
 INSTALLATION
 
@@ -18,7 +18,7 @@ INSTALLATION
     make
     make install
 
-NEW IN VERSION 1.91
+NEW IN VERSION 1.92
 
 	Perl 5.6 compatible
 

@@ -1,7 +1,7 @@
 # BingoX::Carbon
 # -----------------
-# $Revision: 2.30 $
-# $Date: 2000/09/19 23:01:56 $
+# $Revision: 2.34 $
+# $Date: 2000/12/12 19:05:00 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -212,8 +212,8 @@ use BingoX::Time;
 use vars qw($AUTOLOAD $debug);
 
 BEGIN {
-	$BingoX::Carbon::REVISION	= (qw$Revision: 2.30 $)[-1];
-	$BingoX::Carbon::VERSION	= '1.91';
+	$BingoX::Carbon::REVISION	= (qw$Revision: 2.34 $)[-1];
+	$BingoX::Carbon::VERSION	= '1.92';
 
 	$debug	= undef;
 
@@ -351,7 +351,7 @@ sub new {
 	## Get data out of data hash which are date fields. ##
 	if (my $datefields = $class->datefields) {
 		foreach (keys %$datefields) {
-			$data->{$_} = ''.$data->{$_} if ($data->{$_});
+			$data->{$_} = $data->{$_}->time2str( $self->date_format ) if (ref $data->{$_});
 			warn "datefield $_ ==> " . $data->{$_} . "\n" if ($debug > 1);
 		}
 	}
@@ -434,12 +434,9 @@ sub new {
 				## Here we relate all newly related items (we also might			##
 				## be related objects which are already related, but it won't mind)	##
 				foreach my $cpk (keys %local_selected) {			# goes through all newly related cpkeys
-					my $params = {
-									map {
-											shift @{ $relclass->primary_keys } => $_
-									} $self->cpkey( $cpk )
-								};
-					$self->relate( $relclass->get( $dbh, $params ) ) || die "Could not relate object with $relclass";
+					my %params;
+					@params{ @{ $relclass->primary_keys } } = split($self->pkd,$cpk);
+					$self->relate( $relclass->get( $dbh, \%params ) );
 				}
 			}
 		}
@@ -548,7 +545,7 @@ sub modify {
 	## Start Date Fields Code ##
 	if (my $datefields = $class->datefields) {
 		foreach (keys %$datefields) {
-			$data->{$_} = ''.$data->{$_} if ($data->{$_});
+			$data->{$_} = $data->{$_}->time2str( $self->date_format ) if (ref $data->{$_});
 			warn "datefield $_ ==> " . $data->{$_} . "\n" if ($debug > 1);
 		}
 	}
@@ -631,13 +628,10 @@ sub modify {
 
 				## Here we relate all newly related items (we also might be related objects	##
 				## which are already related, but it won't mind)							##
-				foreach my $cpk (keys %local_selected) {	# goes through all newly related cpkeys
-					my $params = {
-									map {
-											shift @{ $relclass->primary_keys } => $_
-									} $self->cpkey( $cpk )
-								};
-					$self->relate( $relclass->get( $self->dbh, $params ) );	# relates
+				foreach my $cpk (keys %local_selected) {			# goes through all newly related cpkeys
+					my %params;
+					@params{ @{ $relclass->primary_keys } } = split($self->pkd,$cpk);
+					$self->relate( $relclass->get( $dbh, \%params ) );
 				}
 			}
 		}
@@ -1045,14 +1039,12 @@ sub relate {
 								};
 			}
 		} else {
-			carp "empty array reference passed to relate" if ($debug);
-			return undef;
+			return $self->error_handler('empty array reference passed to relate');
 		}
 	} elsif ($fclass = ref($data)) {			# Single object
 		@OBJECTS	= ( $data );
 	} else {
-		carp "relate called with invalid parameters - check documentation" if ($debug);
-		return undef;
+		return $self->error_handler('relate called with invalid parameters - check documentation');
 	}
 	############################################################################
 
@@ -1085,8 +1077,8 @@ the number of objects that no longer are related to the object.
 =cut
 sub unrelate {
 	my $self	= shift;
-	my $class	= ref($self) || carp "unrelate must be called as an object method";
-	my $dbh		= ref($self) ? $self->dbh : return undef;
+	my $class	= ref($self) || return $self->error_handler('unrelate must be called as an object method');
+	my $dbh		= $self->dbh;
 	my $data	= shift;
 	my (@OBJECTS, $fclass, $rclass);
 	############################################################################
@@ -1108,14 +1100,12 @@ sub unrelate {
 								};
 			}
 		} else {
-			carp "empty array reference passed to unrelate" if ($debug);
-			return undef;
+			return $self->error_handler('empty array reference passed to unrelate');
 		}
 	} elsif ($fclass = ref($data)) {			# Single object
 		@OBJECTS	= ( $data );
 	} else {
-		carp "unrelate called with invalid parameters - check documentation" if ($debug);
-		return undef;
+		return $self->error_handler('unrelate called with invalid parameters - check documentation');
 	}
 	############################################################################
 
@@ -1146,7 +1136,7 @@ i.e.:
 =cut
 sub unrelate_all {
 	my $self		= shift;
-	my $class		= ref($self) || return $self->error_handler("unrelate_all must be called as an object method");
+	my $class		= ref($self) || return $self->error_handler('unrelate_all must be called as an object method');
 	my $dbh			= $self->dbh;
 	my $fclass		= shift;
 	my $unary_rev	= shift;			# UNARY REVERSE FLAG (use second column)
@@ -1163,8 +1153,8 @@ Returns a true value if $OBJ is related to the object, false otherwise.
 =cut
 sub isrelated {
 	my $self			= shift;
-	my $class			= ref($self) || carp "isrelated must be called as an object method";
-	my $dbh				= ref($self) ? $self->dbh : return undef;
+	my $class			= ref($self) || return $self->error_handler('isrelated must be called as an object method');
+	my $dbh				= $self->dbh;
 	my $OBJECT			= shift || return undef;
 	my ($rclass, $data)	= $self->get_relation_info( 'S', $OBJECT );
 	return undef unless (ref($data) eq 'HASH');
@@ -1180,7 +1170,7 @@ Returns an arrayref of objects of $class related to the object.
 sub list_related {
 	my $self		= shift;
 	my $class		= ref($self) || return $self->error_handler('method list_related must be called as an object method');
-	my $dbh			= ref($self) ? $self->dbh : return undef;
+	my $dbh			= $self->dbh;
 	my $fclass		= shift || return undef;
 	my $fields		= shift || $fclass->primary_keys;
 	my $sort		= shift || $fclass->primary_keys;
@@ -1604,7 +1594,6 @@ B<OPTIMIZE>
 =cut
 sub cpkey {
 	my $self	= shift;
-	my $pkey	= shift;
 	return undef unless (ref $self);
 	return $self->{'_cpkey'} if ($self->{'_cpkey'});
 	$self->{'_cpkey'} = join($self->pkd, map { $self->$_() } @{ $self->primary_keys } );
@@ -1617,18 +1606,17 @@ Returns a params hash from the cpkey string passed.
 
 =cut
 sub cpkey_params {
-	my $self = shift;
-	my $cpkey = shift;
-	my $primary_keys = $self->primary_keys;
+	my $self	= shift;
+	my $cpkey	= shift;
+	my $pkeys	= $self->primary_keys;
 	
 	my $hash = {
 				map {
-						shift(@{ $primary_keys }) => $_
+						shift(@{ $pkeys }) => $_
 					} split($self->pkd, $cpkey)
 			};
 	return $hash;
-
-}
+} # END sub cpeky
 
 =item C<title_field> (  )
 
@@ -1772,12 +1760,14 @@ sub purge_dbh {
 
 =item C<error_handler> (  )
 
-Carps @_ and returns undef.
+Carps @_ if debugging is activated
+prints stack backtrace if $debug > 2
+always returns undef (if you choose to overload this method, please make sure you return undef)
 
 =cut
 sub error_handler {
-	Carp->cluck(@_) if ($debug > 2);
-	carp @_ if ($debug);
+	my $class = ref($_[0]) ? ref(shift) : shift;
+	$debug && (($debug > 2) ? cluck("$class: ", @_) : carp("$class: ", @_));
 	return undef;
 } # END sub error_handler
 
@@ -1816,7 +1806,7 @@ sub errors {
 Returns the data class
 
 =cut
-sub dataclass { $_[0]->data_class }
+sub dataclass { $_[0]->data_class($_[1]) }
 sub data_class {
 	my $self	= shift;
 	my $class	= shift;
@@ -1858,7 +1848,8 @@ sub connectdb {
 	my $class	= ref($self) || $self;
 	no strict 'refs';
 	my $dclass	= $self->dataclass( $class );
-	my @connect	= @{ "${dclass}::connectarray" } || @DATABASE::connectarray;
+	my @connect	= @{ "${dclass}::connectarray" };
+	@connect = @DATABASE::connectarray unless @connect;
 	my $dbh = DBI->connect( @connect ) || return $self->error_handler("Could not connect to the database @connect " . DBI->errstr . "\n");
 	$dbh->do("alter session set NLS_DATE_FORMAT = 'Mon DD YYYY HH12:MI:SSAM'") if ($dbh->{'Driver'}->{'Name'} eq 'Oracle');
 	return $dbh;
@@ -1882,7 +1873,7 @@ displayed as.
 sub date_format { return '%d %b %Y %T' }
 
 
-=item C<str2time> ( [ $string ] )
+=item C<str2time> ( $string )
 
 This is method is used to parse your default date format into a format 
 that str2time understands, such as:
@@ -2005,10 +1996,7 @@ sub format_select {
 	my ($WHERE, @bindings);
 	if ((defined $params) && (((ref($params) eq 'HASH') && %{ $params }) || (ref($params) eq 'ARRAY' && @{ $params }))) {
 		($WHERE, @bindings)	= $class->format_conditions( $params, $alias );
-		unless (defined $WHERE) {
-			carp 'select conditions failed' if ($debug);
-			return undef;
-		}
+		return $self->error_handler('select conditions failed') unless (defined $WHERE);
 	}
 
 	# Don't complain to me about the lowercase SQL
@@ -2153,10 +2141,8 @@ sub format_conditions {
 			if (ref($value) eq 'ARRAY') {				# IN, BETWEEN, or multiple comparisons
 				my ( $type, @values )	= @{ $value };
 				if (substr(lc($type), -2) eq 'in') {	# 'IN' or 'NOT IN'
-					unless (@values) {
-						carp "no bindings passed to format_conditions for type ($type)" if ($debug);
-						return undef;
-					}
+					return $self->error_handler("no bindings passed to format_conditions for type ($type)")
+						unless (@values);
 					my (@IN_bindings, @IN_sql);
 					while (my $value = shift(@values)) {
 						if (lc(substr($value, 0, 6)) eq 'select') {
@@ -2170,10 +2156,8 @@ sub format_conditions {
 					$sql .= "$field " . uc($type) . ' (' . join(', ', @IN_sql) . ')';
 					push(@bindings, @IN_bindings);
 				} elsif (substr(lc($type), -7) eq 'between') {	# 'BETWEEN' or 'NOT BETWEEN'
-					unless (@values) {
-						carp "no bindings passed to format_conditions for type ($type)" if ($debug);
-						return undef;
-					}
+					return $self->error_handler("no bindings passed to format_conditions for type ($type)")
+						unless (@values);
 					$sql .= "$field " . uc($type) . ' ? AND ?';
 					push(@bindings, @values[0,1]);
 				} else {										# LIST of conditions
@@ -2588,7 +2572,7 @@ sub _date_meth_init {
 							}
 
 							if (defined \$data) {
-								\$self->modify({ $field => "".\$date });
+								\$self->modify({ $field => \$date->time2str( \$self->date_format ) });
 							} else {
 								my \$meth	= "SUPER::$field";
 								my \$value	= \$self->\$meth();
@@ -2626,19 +2610,35 @@ sub close {
 =head1 REVISION HISTORY
 
  $Log: Carbon.pm,v $
- Revision 2.30  2000/09/19 23:01:56  dougw
- Version update
+ Revision 2.34  2000/12/12 19:05:00  gefilte
+ new(), modify() - fixed incorrect usage of cpkey(), which caused relational code to fail.
 
- Revision 2.29  2000/09/19 22:59:04  david
+ Revision 2.33  2000/12/12 18:49:36  useevil
+  - removed $pkey from cpkey, because its not used
+  - updated version for new release:  1.92
+
+ Revision 2.32  2000/11/15 19:33:09  useevil
+  - new(), modify(), and _date_meth_init() now calls time2str() instead
+    of stringifying the object, and date_format() now works
+
+ Revision 2.31  2000/09/26 21:17:38  zhobson
+ Fixed bugs in connectdb() and dataclass() that conspired to prevent projects from
+ specifying a connectarray in their own namespace (like @Foo::Data::connectarray)
+
+ Revision 2.30  2000/09/20 20:48:27  dweimer
+ Doh! fixed some typo's
+
+ Revision 2.29  2000/09/20 20:46:14  dweimer
+ Merged David's changes.
+ His comments:
+ Cleaned up some debugging code.  All stray carp() calls now call error_handler().  error_handler() itself cleaned up.
+
+ Revision 2.28  2000/09/19 23:49:38  dweimer
  content() - no longer converts linebreaks into HTML break tags (must have seemed useful at the time...)
+ Changed error_handler so that it clucks if debug is > 2.
 
- Revision 2.28  2000/09/19 20:14:11  dougw
- Changed cluck fix  arround to always cluck instead of carp if debug is >2.
- Changed the use Carp to use Carp (:DEFAULT cluck) since cluck isn't exported
- by default.
-
- Revision 2.27  2000/09/19 19:36:31  dougw
- Took out Carp->longmess and replaced with Carp->cluck.
+ Revision 2.27  2000/09/19 23:42:42  dweimer
+ Version update 1.91
 
  Revision 2.26  2000/09/13 18:16:00  david
  new(), modify()

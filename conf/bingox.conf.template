@@ -79,8 +79,8 @@ AddType text/html .xpml
 	PerlSendHeader Off
 	SetHandler perl-script
 	PerlHandler Apache::XPP
+</Files>
 
 	PerlSetVar XPPIncludeDir include
 	PerlSetVar XPMLHeaders header.xmi
 #	PerlSetVar XPMLFooters footer.xmi
-</Files>

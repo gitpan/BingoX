@@ -1,7 +1,7 @@
 # BingoX::Time
 # -----------------
-# $Revision: 1.7 $
-# $Date: 2000/09/19 23:01:57 $
+# $Revision: 1.10 $
+# $Date: 2000/12/12 18:54:34 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -44,7 +44,11 @@ OBJECT METHODS
 
 =head1 REQUIRES
 
-Date::Language, Time::Object, strict
+ strict
+ Date::Parse
+ Date::Language
+ Date::Language::English
+ Time::Object
 
 =head1 EXPORTS
 
@@ -62,15 +66,17 @@ Time provides an OO interface to Time/Dates, ala Time::Object.
 
 package BingoX::Time;
 
+use vars qw(@ISA @EXPORT $debug);
+use strict;
+
+use Date::Parse;
 use Date::Language;
 use Date::Language::English;
 
-use strict;
-use vars qw(@ISA @EXPORT $debug);
 
 BEGIN {
-	$BingoX::Time::REVISION	= (qw$Revision: 1.7 $)[-1];
-	$BingoX::Time::VERSION	= '1.91';
+	$BingoX::Time::REVISION	= (qw$Revision: 1.10 $)[-1];
+	$BingoX::Time::VERSION	= '1.92';
 
 	@ISA		= qw(Time::Object);
 	@EXPORT		= qw(localtime gmtime);
@@ -95,7 +101,7 @@ returns a BingoX Time Object.
 sub new {
 	my $proto	= shift;
 	my $class	= ref($proto) || $proto;
-	my $time	= shift || time;
+	my $time	= shift;
 	my $islocal	= shift;
 
 	my $self;
@@ -128,14 +134,56 @@ localtime, or gmtime depending on the $islocal flag.
 =cut
 sub _mktime {
 	my ($time, $islocal, $class) = @_;
-	my @time = $islocal ?
-			CORE::localtime($time)
-			:
-			CORE::gmtime($time);
+	my @time = $islocal
+			? CORE::localtime($time)
+			: CORE::gmtime($time);
 	wantarray ? @time : bless [@time, $time, $islocal], ($class->isa('Time::Object')
 														? $class
 														: 'Time::Object');
 } # END sub _mktime
+
+
+=item C<str2time> ( $string )
+
+This is method is used to parse your default date format into a format 
+that str2time understands, such as:
+
+  Date: 961221               (yymmdd)
+  Date: 12-21-96             (mm-dd-yy)    ( '-', '.' or '/' )
+  Date: 12-June-96           (dd-month-yy) ( '-', '.' or '/' )
+  Date: June 12 96 00:00PM   (month dd yy hh:mmPM)
+  Date: June 12 96 00::00:00 (month dd yy hh:mm::ss)
+
+If time is not passed then time defaults to 00:00:00.
+
+=cut
+sub str2time {
+	my $self	= shift;
+	my $string	= shift;
+
+	Date::Parse::str2time( $string );
+} # END sub str2time
+
+
+=item C<time2str> ( $format )
+
+For compatibility for the older DateTime::Date modules.  Passes the 
+$format to strftime.
+
+=cut
+sub time2str {
+	my $self	= shift;
+	my $f		= shift;
+	$self->strftime( $f );
+} # END of time2str
+
+
+=item C<time_local> (  )
+
+For compatibility for the older DateTime::Date modules.  Returns $self->epoch.
+
+=cut
+sub time_local { $_[0]->epoch }
 
 
 =item C<month_full> (  )
@@ -283,8 +331,20 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Time.pm,v $
- Revision 1.7  2000/09/19 23:01:57  dougw
- Version update
+ Revision 1.10  2000/12/12 18:54:34  useevil
+  - updated version for new release:  1.92
+
+ Revision 1.9  2000/11/15 19:38:50  useevil
+  - added str2time()
+  - fixed bug in new() where $time was always defined
+
+ Revision 1.8  2000/10/17 00:49:04  dweimer
+ Merged over thai's commit, comment below:
+
+ - added time2str() and time_local() for former users of DateTime::Date
+
+ Revision 1.7  2000/09/19 23:42:07  dweimer
+ Version update 1.91
 
  Revision 1.6  2000/09/13 20:10:42  thai
   - added use Data::Language::English

@@ -1,7 +1,7 @@
 # BingoX::Cobalt
 # -----------------
-# $Revision: 2.12 $
-# $Date: 2000/09/19 23:01:56 $
+# $Revision: 2.15 $
+# $Date: 2000/12/12 18:53:36 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -123,8 +123,8 @@ use BingoX::Time;
 use vars qw($AUTOLOAD $debug);
 
 BEGIN {
-	$BingoX::Cobalt::REVISION	= (qw$Revision: 2.12 $)[-1];
-	$BingoX::Cobalt::VERSION	= '1.91';
+	$BingoX::Cobalt::REVISION	= (qw$Revision: 2.15 $)[-1];
+	$BingoX::Cobalt::VERSION	= '1.92';
 	
 	$debug	= undef;
 }
@@ -195,15 +195,15 @@ sub stream_obj {
 	my $dbh		= ref($self) ? $self->dbh : shift;
 	my $stream	= $class->data_class->stream_obj( $dbh, @_ );
 	return undef unless (ref $stream);
-	return sub {
+	return bless(sub {
 		my $self	= bless({
 								_app	=> $app,
-								_db_obj	=> $stream->(),
+								_db_obj	=> $stream->(@_),
 								_dbh	=> $dbh
 							}, $class);
 		return undef unless ref($self->{'_db_obj'});
 		return $self;
-	}
+	}, 'BingoX::Cobalt::Stream');
 } # END of stream_obj
 
 
@@ -332,7 +332,7 @@ sub stream_related {
 	my $rclass	= shift;
 	my $rdclass	= $rclass->data_class || $rclass;	# get the display class's data class if they passed that instead.
 	my $stream	= $self->db_obj->stream_related( $rdclass, @_ ) || return undef;
-	return sub {
+	return bless(sub {
 		while (my $db_obj = $stream->()) {
 			return bless({
 							_app		=> $app,
@@ -340,7 +340,7 @@ sub stream_related {
 							_dbh		=> $dbh
 						}, $rclass);
 		}
-	}
+	}, 'BingoX::Cobalt::Stream');
 } # END of stream_related
 
 
@@ -494,7 +494,7 @@ Returns a Popup Menu with the Months of the Year.
 sub month_menu {
 	my $self	= shift;
 	my $name	= shift;
-	my $default= shift || undef;
+	my $default	= shift || undef;
 	my $date	= ref($default) ? $default : BingoX::Time->new;
 
 	return $self->cgi->popup_menu(	-NAME		=> $name,
@@ -800,6 +800,25 @@ sub xinclude {
 
 =over 4
 
+
+=item C<adminuri> (  )
+
+Returns class defined URI as a string.
+
+=cut
+sub adminuri {
+	my $self	= shift;
+	my $class	= ref($self) || $self;
+	no strict 'refs';
+	my $uri		= ${"${class}::adminuri"};
+	unless (defined $uri) {
+		$class	=~ s/::Display::/::Admin::/;
+		$uri	= $class->adminuri;
+	}
+	return $uri;
+} # END sub adminuri
+
+
 =item C<data_class> (  )
 
 Returns the data class for the current display class (from the class 
@@ -982,6 +1001,18 @@ sub _get_default {
 	}
 } # END of _get_default
 
+package BingoX::Cobalt::Stream;
+
+# Objects are constructed in the BingoX::Cobalt::stream_obj method above.
+sub next {
+	my $self	= shift;
+	return $self->();
+} # END sub next
+
+sub close {
+	my $self	= shift;
+	return $self->(1);
+} # END sub close
 
 1;
 
@@ -992,8 +1023,17 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Cobalt.pm,v $
- Revision 2.12  2000/09/19 23:01:56  dougw
- Version update
+ Revision 2.15  2000/12/12 18:53:36  useevil
+  - updated version for new release:  1.92
+
+ Revision 2.14  2000/10/20 00:26:40  zhobson
+ stream_* now returns blessed streams a la Carbon
+
+ Revision 2.13  2000/10/17 00:49:55  dweimer
+ - added adminuri()
+
+ Revision 2.12  2000/09/19 23:41:46  dweimer
+ Version update 1.91
 
  Revision 2.11  2000/09/12 00:49:17  david
  Fixed several accessor methods to be pure object methods.

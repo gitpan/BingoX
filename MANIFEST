@@ -1,8 +1,12 @@
 COPYING
+INSTALL
 MANIFEST
+README
 Makefile.PL
 conf/bingox.conf.template
+conf/bingox.conf.modules
 lib/BingoX/Argon.pm
 lib/BingoX/Carbon.pm
 lib/BingoX/Chromium.pm
 lib/BingoX/Cobalt.pm
+lib/BingoX/Time.pm
