@@ -1,7 +1,7 @@
 # BingoX::Cobalt
 # -----------------
-# $Revision: 2.11 $
-# $Date: 2000/09/12 00:49:17 $
+# $Revision: 2.12 $
+# $Date: 2000/09/19 23:01:56 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -123,8 +123,8 @@ use BingoX::Time;
 use vars qw($AUTOLOAD $debug);
 
 BEGIN {
-	$BingoX::Cobalt::REVISION	= (qw$Revision: 2.11 $)[-1];
-	$BingoX::Cobalt::VERSION	= '1.90';
+	$BingoX::Cobalt::REVISION	= (qw$Revision: 2.12 $)[-1];
+	$BingoX::Cobalt::VERSION	= '1.91';
 	
 	$debug	= undef;
 }
@@ -992,6 +992,9 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Cobalt.pm,v $
+ Revision 2.12  2000/09/19 23:01:56  dougw
+ Version update
+
  Revision 2.11  2000/09/12 00:49:17  david
  Fixed several accessor methods to be pure object methods.
 

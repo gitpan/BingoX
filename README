@@ -18,9 +18,9 @@ INSTALLATION
     make
     make install
 
-NEW IN VERSION 1.90
+NEW IN VERSION 1.91
 
-    First public release!
+	Perl 5.6 compatible
 
 GETTING HELP
 

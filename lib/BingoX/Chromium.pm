@@ -1,7 +1,7 @@
 # BingoX::Chromium 
 # -----------------
-# $Revision: 2.21 $
-# $Date: 2000/09/13 20:58:27 $
+# $Revision: 2.22 $
+# $Date: 2000/09/19 23:01:56 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -202,8 +202,8 @@ use strict;
 use vars qw($AUTOLOAD $debug);
 
 BEGIN {
-	$BingoX::Chromium::REVISION	= (qw$Revision: 2.21 $)[-1];
-	$BingoX::Chromium::VERSION	= '1.90';
+	$BingoX::Chromium::REVISION	= (qw$Revision: 2.22 $)[-1];
+	$BingoX::Chromium::VERSION	= '1.91';
 
 	$debug	= undef;
 
@@ -2705,6 +2705,9 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Chromium.pm,v $
+ Revision 2.22  2000/09/19 23:01:56  dougw
+ Version update
+
  Revision 2.21  2000/09/13 20:58:27  adam
   - in get_data, changed how dates are handled if SHOW_24HOURS is off
 

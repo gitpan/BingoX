@@ -1,7 +1,7 @@
 # BingoX::Carbon
 # -----------------
-# $Revision: 2.26 $
-# $Date: 2000/09/13 18:16:00 $
+# $Revision: 2.30 $
+# $Date: 2000/09/19 23:01:56 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -205,15 +205,15 @@ e.g. :
 package BingoX::Carbon;
 
 use DBI;
-use Carp;
+use Carp qw(:DEFAULT cluck);
 use strict;
 use Date::Parse;
 use BingoX::Time;
 use vars qw($AUTOLOAD $debug);
 
 BEGIN {
-	$BingoX::Carbon::REVISION	= (qw$Revision: 2.26 $)[-1];
-	$BingoX::Carbon::VERSION	= '1.90';
+	$BingoX::Carbon::REVISION	= (qw$Revision: 2.30 $)[-1];
+	$BingoX::Carbon::VERSION	= '1.91';
 
 	$debug	= undef;
 
@@ -1776,6 +1776,7 @@ Carps @_ and returns undef.
 
 =cut
 sub error_handler {
+	Carp->cluck(@_) if ($debug > 2);
 	carp @_ if ($debug);
 	return undef;
 } # END sub error_handler
@@ -1933,8 +1934,8 @@ sub sql_select {
 	my @bindings	= ref($bindings) ? @$bindings : ( );
 	warn "$class->sql_select:\t\t\"$SELECT\" [@bindings]\n" if ($debug);
 	my $sth;
-	$sth = $dbh->prepare( $SELECT )	|| return $self->error_handler("In ${class}::sql_select(), prepare\n$SELECT;\n" . $dbh->errstr . "\n\n" . Carp->longmess);
-	$sth->execute( @bindings )		|| return $self->error_handler("In ${class}::sql_select(), execute\n$SELECT;\n" . $sth->errstr . "\n\n" . Carp->longmess);
+	$sth = $dbh->prepare( $SELECT )	|| return $self->error_handler("In ${class}::sql_select(), prepare\n$SELECT;\n" . $dbh->errstr . "\n\n");
+	$sth->execute( @bindings )		|| return $self->error_handler("In ${class}::sql_select(), execute\n$SELECT;\n" . $sth->errstr . "\n\n");
 	return ($dbh->{'Driver'}->{'Name'} eq 'Oracle')
 		? (bless(sub {									# Oracle version (slower!) 
 			if ($_[0]) {
@@ -2240,7 +2241,7 @@ modified in the database and instance data, and value is returned.
 =cut
 sub AUTOLOAD {
 	my $self	= shift;
-	ref($self)	|| return $self->error_handler("In ${self}::AUTOLOAD($AUTOLOAD)\n$self is not an object\n\n" . Carp->longmess);
+	ref($self)	|| return $self->error_handler("In ${self}::AUTOLOAD($AUTOLOAD)\n$self is not an object\n\n");
 	my $class	= ref($self);
 
 	return if ($AUTOLOAD =~ /::DESTROY$/);
@@ -2291,10 +2292,10 @@ sub _create_access_method {
 				my \$class	= ref(\$self) || return undef;
 				if (defined(my \$data = shift)) {
 					\$self->modify({$name => \$data})
-						|| return \$self->error_handler("In dynamic method $name()\n\tmodify({$name => \$data}) failed\n\n\t" . Carp->longmess);
+						|| return \$self->error_handler("In dynamic method $name()\n\tmodify({$name => \$data}) failed\n\n\t");
 					\$self->{'$name'} = \$data;
 				} elsif (!exists \$self->{'$name'}) {
-					map { ('$name' eq \$_) && return \$self->error_handler("In dynamic method $name()\n\tBingoX::Carbon ABUSE!  Object in class $class has no value for primary key $name in instance data!\n\n\t" . Carp->longmess) }
+					map { ('$name' eq \$_) && return \$self->error_handler("In dynamic method $name()\n\tBingoX::Carbon ABUSE!  Object in class $class has no value for primary key $name in instance data!\n\n\t") }
 						\@{ \$self->primary_keys };
 					my \%params	= map { \$_ => \$self->\$_() } (\@{ \$self->primary_keys });
 					my \$aref	= \$self->list_array( \\\%params, ['$name'] );
@@ -2360,7 +2361,7 @@ sub _create_forwarder_method {
 =cut
 sub _old_school_autoload {
 	my $self	= shift;
-	ref($self)	|| return $self->error_handler("In " . $self . "::AUTOLOAD()\n$self is not an object\n\n" . Carp->longmess);
+	ref($self)	|| return $self->error_handler("In " . $self . "::AUTOLOAD()\n$self is not an object\n\n");
 	my $class	= ref($self);
 
 	return if ($AUTOLOAD =~ /::DESTROY$/o);
@@ -2368,14 +2369,14 @@ sub _old_school_autoload {
 
 	## Check to see if valid field name ##
 	exists $self->deffields->{ $name }
-		|| return $self->error_handler("In AUTOLOAD()\n\tMethod $name not defined in class $class\n\n\t" . Carp->longmess);
+		|| return $self->error_handler("In AUTOLOAD()\n\tMethod $name not defined in class $class\n\n\t");
 
 	if (defined(my $data = shift)) {			# Data passed -- call modify()
 		$self->modify({ $name => $data })
-			|| return $self->error_handler("In AUTOLOAD()\n\tmodify({$name => $data}) failed\n\n\t" . Carp->longmess);
+			|| return $self->error_handler("In AUTOLOAD()\n\tmodify({$name => $data}) failed\n\n\t");
 	} elsif (!exists $self->{ $name }) {		# No data passed or cached, retrieve from database
 		## Check for nasty BingoX::Carbon abuse  ##
-		map { ($name eq $_) && return $class->error_handler("In AUTOLOAD()\n\tBingoX::Carbon ABUSE!  Object in class $class has no value for primary key $name in instance data!\n\n\t" . Carp->longmess) }
+		map { ($name eq $_) && return $class->error_handler("In AUTOLOAD()\n\tBingoX::Carbon ABUSE!  Object in class $class has no value for primary key $name in instance data!\n\n\t") }
 			@{ $self->primary_keys };
 		my %params	= map { $_ => $self->$_() } (@{ $self->primary_keys });
 		my $aref	= $self->list_array( \%params, [$name] );
@@ -2448,28 +2449,14 @@ sub _content {
 		}
 		return 1;
 	} else {
-#		(defined $self->{ $content_class }) ||
-#		($self->{ $content_class } = join('', map {
-#													$_->[0]
-#												} @{ $content_class->list_array(
-#																				$self->dbh,
-#																				$params,
-#																				[ $content_column ],
-#																				[ $pos_column ]
-#																			) }
-#										));
-#		return $self->{ $content_class };
-		return join('', map {
-								## Change \n to <BR> ##
-								$_->[0] =~ s/(\r\n)|[\n\r]/<BR>/go;
-								$_->[0]
-							} @{ $content_class->list_array(
-											$self->dbh,
-											$params,
-											[ $content_column ],
-											[ $pos_column ]
-										) || [ ]
-								}
+		return join('', map { $_->[0] }
+							@{ $content_class->list_array(
+									$self->dbh,
+									$params,
+									[ $content_column ],
+									[ $pos_column ]
+								) || [ ]
+							}
 					);
 	}
 	1;
@@ -2639,6 +2626,20 @@ sub close {
 =head1 REVISION HISTORY
 
  $Log: Carbon.pm,v $
+ Revision 2.30  2000/09/19 23:01:56  dougw
+ Version update
+
+ Revision 2.29  2000/09/19 22:59:04  david
+ content() - no longer converts linebreaks into HTML break tags (must have seemed useful at the time...)
+
+ Revision 2.28  2000/09/19 20:14:11  dougw
+ Changed cluck fix  arround to always cluck instead of carp if debug is >2.
+ Changed the use Carp to use Carp (:DEFAULT cluck) since cluck isn't exported
+ by default.
+
+ Revision 2.27  2000/09/19 19:36:31  dougw
+ Took out Carp->longmess and replaced with Carp->cluck.
+
  Revision 2.26  2000/09/13 18:16:00  david
  new(), modify()
  	- now only open a transaction if necessary (multiple statements required)

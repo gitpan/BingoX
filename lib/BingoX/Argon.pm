@@ -1,7 +1,7 @@
 # BingoX::Argon
 # -----------------
-# $Revision: 2.4 $
-# $Date: 2000/08/31 21:54:18 $
+# $Revision: 2.5 $
+# $Date: 2000/09/19 23:01:56 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -85,8 +85,8 @@ use strict;
 use vars qw($debug $AUTOLOAD);
 
 BEGIN {
-	$BingoX::Argon::REVISION	= (qw$Revision: 2.4 $)[-1];
-	$BingoX::Argon::VERSION		= '1.90';
+	$BingoX::Argon::REVISION	= (qw$Revision: 2.5 $)[-1];
+	$BingoX::Argon::VERSION		= '1.91';
 	
 	$debug	= undef;
 }
@@ -312,6 +312,9 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Argon.pm,v $
+ Revision 2.5  2000/09/19 23:01:56  dougw
+ Version update
+
  Revision 2.4  2000/08/31 21:54:18  greg
  Added COPYRIGHT information.
  Added file COPYING (LGPL).

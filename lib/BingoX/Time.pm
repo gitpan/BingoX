@@ -1,7 +1,7 @@
 # BingoX::Time
 # -----------------
-# $Revision: 1.6 $
-# $Date: 2000/09/13 20:10:42 $
+# $Revision: 1.7 $
+# $Date: 2000/09/19 23:01:57 $
 # ---------------------------------------------------------
 
 =head1 NAME
@@ -69,8 +69,8 @@ use strict;
 use vars qw(@ISA @EXPORT $debug);
 
 BEGIN {
-	$BingoX::Time::REVISION	= (qw$Revision: 1.6 $)[-1];
-	$BingoX::Time::VERSION	= '1.90';
+	$BingoX::Time::REVISION	= (qw$Revision: 1.7 $)[-1];
+	$BingoX::Time::VERSION	= '1.91';
 
 	@ISA		= qw(Time::Object);
 	@EXPORT		= qw(localtime gmtime);
@@ -283,6 +283,9 @@ __END__
 =head1 REVISION HISTORY
 
  $Log: Time.pm,v $
+ Revision 1.7  2000/09/19 23:01:57  dougw
+ Version update
+
  Revision 1.6  2000/09/13 20:10:42  thai
   - added use Data::Language::English
 
