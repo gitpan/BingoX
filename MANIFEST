@@ -1,0 +1,8 @@
+COPYING
+MANIFEST
+Makefile.PL
+conf/bingox.conf.template
+lib/BingoX/Argon.pm
+lib/BingoX/Carbon.pm
+lib/BingoX/Chromium.pm
+lib/BingoX/Cobalt.pm
